@@ -5,7 +5,7 @@ plugins {
 
 version = '0.1.1'
 
-mainClassName = 'MainKt'
+mainClassName = 'me.msoucy.gbat.MainKt'
 description = 'My Application'
 
 sourceCompatibility = 1.8

@@ -2,8 +2,10 @@ package me.msoucy.gbat
 
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.math.pow
+import kotlin.system.exitProcess
 import kotlin.text.Regex
 import kotlin.text.RegexOption
 import kotlin.text.startsWith
@@ -110,12 +112,9 @@ class GitRepo(val project_root : File, val git_exe : String) {
 
 fun main(args: Array<String>) = mainBody {
 	ArgParser(args).parseInto(::GbatArgs).run {
-		println("Hello world")
-        println(validateGit(git_exe))
-        
         val outDir = File(output)
         if(outDir.isDirectory) {
-            throw InvalidArgumentException("Output directory already exists")
+            //throw InvalidArgumentException("Output directory already exists")
         }
 
         outDir.mkdirs()
@@ -130,23 +129,38 @@ fun main(args: Array<String>) = mainBody {
             }
 
         val risk_thresh = risk_threshold ?: default_bus_risk.pow(3)
-        val interesting_res = if (interesting.isEmpty()) DEFAULT_INTERESTING_RES else {
-            parse_interesting(interesting)
-        }
-        val not_interesting_res = if (not_interesting.isEmpty()) listOf() else {
-            parse_interesting(not_interesting)
-        }
+        val interesting_res = parse_interesting(if (interesting.isEmpty()) DEFAULT_INTERESTING_RES else interesting)
+        val not_interesting_res = if (not_interesting.isEmpty()) listOf() else parse_interesting(not_interesting)
 
         val project_root_file = File(project_root).also {
             if(!it.isDirectory)
                 throw InvalidArgumentException("Provided project root does not exist")
         }
-        println(risk_thresh)
-        println(interesting_res)
-        println(not_interesting_res)
-        println(project_root_file)
 
         val repo = GitRepo(project_root_file, validateGit(git_exe))
-        println(repo.ls())
+
+        fun String.isInteresting() : Boolean {
+            var hasInterest = interesting_res.any { it.containsMatchIn(this) }
+            if(hasInterest) {
+                hasInterest = !not_interesting_res.any { it.containsMatchIn(this) }
+            }
+            return hasInterest
+        }
+
+        fun GitRepo.interestingNames() = ls().split("\n").filter{ it.isInteresting() }
+        val fnames = repo.interestingNames()
+
+        if (fnames.isEmpty()) {
+            System.err.println("No interesting files found, exiting.")
+            exitProcess(1)
+        }
+
+        if (verbose) {
+            System.err.println("Found ${fnames.size} interesting files")
+        }
+
+        val pool = Executors.newFixedThreadPool(num_analyzer_procs + num_git_procs + 1)
+        val summ_result = mutableListOf<Int>()
+        
 	}
 }

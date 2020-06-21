@@ -56,8 +56,8 @@ class GbatArgs(parser: ArgParser) {
 	val not_interesting by parser.adding("--not-interesting", "-N",
 		help="Regular expression to determine which files should not be included in calculations.")
 	val case_sensitive by parser.flagging("Use case sensitive regexps when determining interesting files (default is case-insensitive)")
-	val departed by parser.storing("--departed-file", "-D", help="File listing departed devs, one per line").default<String?>(null)
-	val risk_file by parser.storing("--bus-risk-file", help="File of dev=float lines (e.g. ejorgensen=0.4) with custom bus risks for devs").default<String?>(null)
+	val departed by parser.storing("--departed-file", "-D", help="File listing departed devs, one per line", transform=::File).default<File?>(null)
+	val risk_file by parser.storing("--bus-risk-file", help="File of dev=float lines (e.g. ejorgensen=0.4) with custom bus risks for devs", transform=::File).default<File?>(null)
 	val default_bus_risk by parser.storing("--default-bus-risk", help="Default risk that a dev will be hit by a bus in your analysis timeframe (defaults to 0.1).") { toDouble() }.default(0.1)
 
 	// Multiprocessing options
@@ -66,7 +66,7 @@ class GbatArgs(parser: ArgParser) {
 
 	// Tuning options
 	val risk_threshold by parser.storing("--risk-threshold", help="Threshold past which to summarize risk (defaults to default bus risk cubed)") { toDouble() }.default<Double?>(null)
-	val creation_constant by parser.storing("--knowledge-creation-constant", help="How much knowledge a changed line should create if a new line creates 1 (defaults to 0.1)") {toDouble()}.default<Double?>(null)
+	val creation_constant by parser.storing("--knowledge-creation-constant", help="How much knowledge a changed line should create if a new line creates 1 (defaults to 0.1)") { toDouble() }.default<Double?>(null)
 
 	// Misc options
 	val git_exe by parser.storing("--git-exe", help="Path to the git executable", transform=::validateGit).default("git").addValidator { validateGit(value) }

@@ -5,16 +5,6 @@ import kotlin.io.forEachLine
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 
-fun <T> Iterable<T>.copyOf(): List<T> {
-    val original = this
-    return mutableListOf<T>().apply { addAll(original) }
-}
-
-fun <T> Iterable<T>.mutableCopyOf(): MutableList<T> {
-    val original = this
-    return mutableListOf<T>().apply { addAll(original) }
-}
-
 enum class ChangeType {
     Add, Change, Remove
 }

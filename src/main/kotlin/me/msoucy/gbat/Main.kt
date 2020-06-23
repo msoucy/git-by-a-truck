@@ -1,9 +1,7 @@
 package me.msoucy.gbat
 
 import java.io.File
-import java.io.IOException
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.math.pow
 import kotlin.system.exitProcess
 import kotlin.text.Regex
@@ -75,39 +73,6 @@ class GbatArgs(parser: ArgParser) {
 
 	// Directory
     val project_root by parser.positional("The root directory to inspect")
-}
-
-fun List<String>.runCommand(workingDir: File): Pair<String?,String?> {
-    try {
-        val proc = ProcessBuilder(*this.toTypedArray())
-                .directory(workingDir)
-                .redirectOutput(ProcessBuilder.Redirect.PIPE)
-                .redirectError(ProcessBuilder.Redirect.PIPE)
-                .start()
-
-        proc.waitFor(60, TimeUnit.MINUTES)
-        return Pair(proc.inputStream.bufferedReader().readText(),
-                    proc.errorStream.bufferedReader().readText())
-    } catch(e: IOException) {
-        e.printStackTrace()
-        return Pair(null, null)
-    }
-}
-
-class GitRepo(val project_root : File, val git_exe : String) {
-    fun ls() : String {
-        val cmd = listOf(
-            git_exe,
-            "ls-tree",
-            "--full-tree",
-            "--name-only",
-            "-r",
-            "HEAD",
-            project_root.absolutePath
-        )
-        val (out, err) = cmd.runCommand(project_root)
-        return out ?: ""
-    }
 }
 
 fun main(args: Array<String>) = mainBody {

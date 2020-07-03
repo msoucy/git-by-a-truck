@@ -12,7 +12,7 @@ class LineModel() {
     inner class Line(var num : Int, var text : String)
     val model = mutableSetOf<Line>()
 
-    fun applyChange(changeType : ChangeType, lineNum : Int, lineText : String) = when(changeType) {
+    fun apply(changeType : ChangeType, lineNum : Int, lineText : String) = when(changeType) {
         ChangeType.Add -> add(Line(lineNum, lineText))
         ChangeType.Change -> change(Line(lineNum, lineText))
         ChangeType.Remove -> del(Line(lineNum, lineText))

@@ -45,7 +45,7 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
     val SAFE_KNOWLEDGE_ACCT_ID = 1
     val KNOWLEDGE_PER_LINE_ADDED = 1000.0
 
-    fun applyChange(changeType : ChangeType, author : String, lineNum : Int) = when(changeType) {
+    fun apply(changeType : ChangeType, author : String, lineNum : Int) = when(changeType) {
         ChangeType.Add -> lineAdded(author, lineNum)
         ChangeType.Change -> lineChanged(author, lineNum)
         ChangeType.Remove -> lineRemoved(lineNum)

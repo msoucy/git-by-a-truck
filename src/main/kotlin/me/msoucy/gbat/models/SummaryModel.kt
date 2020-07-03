@@ -7,20 +7,6 @@ import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 
-class CondensedAnalysis {
-    class LineSummary {
-        var authors = listOf<String>()
-        var knowledge = 0.0
-        var risk = 0.0
-        var orphaned = 0.0
-    }
-    var repoRoot = ""
-    var project = ""
-    var projectRoot = ""
-    var fileName = ""
-    var lineSummaries = mutableListOf<Pair<String, List<LineSummary>>>()
-}
-
 class SummaryModel(val db : Database) {
 
     object ProjectTable : IntIdTable("projects", "projectid") {
@@ -112,7 +98,7 @@ class SummaryModel(val db : Database) {
 
     fun summarize(ca : CondensedAnalysis) {
         val fname = adjustFname(File(ca.repoRoot), File(ca.projectRoot), File(ca.fileName))
-        val projectId = findOrCreateProject(ca.project)
+        val projectId = findOrCreateProject(ca.projectRoot)
 
         var parentDirId = 0
         splitAllDirs(fname.parentFile).forEach {

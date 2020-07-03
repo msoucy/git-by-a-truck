@@ -20,14 +20,14 @@ class GitRepo(val projectRoot : File, val git_exe : String) {
         return out ?: ""
     }
 
-    fun root() : String? {
+    fun root() : File {
         val cmd = listOf(
             git_exe,
             "rev-parse",
             "--show-toplevel"
         )
         val (out, _) = cmd.runCommand(projectRoot)
-        return out
+        return File(out)
     }
 
     fun log(fname : File) : List<Pair<String, Diff>> {

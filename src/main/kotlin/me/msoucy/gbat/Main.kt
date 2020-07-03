@@ -93,11 +93,11 @@ fun main(args: Array<String>) = mainBody {
                 }
             }
 
-        val risk_thresh = risk_threshold ?: default_bus_risk.pow(3)
+        val riskThresh = risk_threshold ?: default_bus_risk.pow(3)
         val interesting_res = parse_interesting(if (interesting.isEmpty()) DEFAULT_INTERESTING_RES else interesting)
         val not_interesting_res = if (not_interesting.isEmpty()) listOf() else parse_interesting(not_interesting)
 
-        val project_root_file = File(project_root).also {
+        val projectRootFile = File(project_root).also {
             if(!it.isDirectory)
                 throw InvalidArgumentException("Provided project root does not exist")
         }
@@ -125,7 +125,14 @@ fun main(args: Array<String>) = mainBody {
         }
 
         val pool = Executors.newFixedThreadPool(num_analyzer_procs + num_git_procs + 1)
+
+        fnames.forEach { fname ->
+            pool.submit {
+                parseHistory(repo, projectRootFile, File(fname))
+            }
+        }
+
         val summ_result = mutableListOf<Int>()
-        
-	}
+        val dbFname = File(outDir, "summary.db")
+    }
 }

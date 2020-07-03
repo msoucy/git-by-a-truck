@@ -60,7 +60,7 @@ class GitRepo(val projectRoot : File, val git_exe : String) {
 
     private fun parseAuthor(header : List<String>) : String {
         val segs = header.getOrNull(1)?.trim()?.split("\\s+".toRegex())?: listOf()
-        return segs.subList(1, segs.size - 2).joinToString(" ")
+        return segs.subList(1, segs.size - 1).joinToString(" ")
     }
 
     private fun splitEntryHeader(entry : String) : Pair<List<String>, List<String>> {

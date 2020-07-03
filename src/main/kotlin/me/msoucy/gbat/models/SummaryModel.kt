@@ -267,7 +267,9 @@ class SummaryModel(val db : Database) {
 
     fun fileSummary(fileId : Int) = transaction(db) {
         var fileTree = FileTree()
-        lineAllocationGroups.select {
+        lineAllocationGroups
+        .slice(AllocationsTable.knowledge.sum(), AllocationsTable.risk.sum(), AllocationsTable.orphaned.sum(), AuthorsGroupsTable.authors)
+        .select {
             LinesTable.fileid eq fileId
         }.groupBy(AuthorsGroupsTable.id).forEach { row ->
             val authors = row[AuthorsGroupsTable.authors]
@@ -276,7 +278,9 @@ class SummaryModel(val db : Database) {
         Join(lineAllocations, FilesTable,
             JoinType.LEFT,
             LinesTable.fileid, FilesTable.id
-        ).select { LinesTable.fileid eq fileId }
+        )
+        .slice(AllocationsTable.knowledge.sum(), AllocationsTable.risk.sum(), AllocationsTable.orphaned.sum())
+        .select { LinesTable.fileid eq fileId }
         .first().let { row ->
             fileTree.stats = Statistics(row)
         }
@@ -287,13 +291,17 @@ class SummaryModel(val db : Database) {
         .map { it[LinesTable.id].value }
         .forEach { lineId ->
             val lineDict = LineDict()
-            lineAllocationGroups.select {
+            lineAllocationGroups
+            .slice(AllocationsTable.knowledge.sum(), AllocationsTable.risk.sum(), AllocationsTable.orphaned.sum(), AuthorsGroupsTable.authors)
+            .select {
                 LinesTable.id eq lineId
             }.groupBy(AuthorsGroupsTable.id).forEach { lineRow ->
                 lineDict.authorRisks[lineRow[AuthorsGroupsTable.authors]] = Statistics(lineRow)
             }
 
-            lineAllocations.select {
+            lineAllocations
+            .slice(AllocationsTable.knowledge.sum(), AllocationsTable.risk.sum(), AllocationsTable.orphaned.sum())
+            .select {
                 LinesTable.id eq lineId
             }.first().let {
                 lineDict.stats = Statistics(it)
@@ -313,7 +321,7 @@ class SummaryModel(val db : Database) {
 
     private fun transformNode(tree : MutableMap<Int, ProjectTree>, dirId : Int) : ProjectTreeNode {
         val result = ProjectTreeNode()
-        tree[dirId]?.let {dirdict ->
+        tree[dirId]?.let { dirdict ->
             result.dirs = mutableListOf<ProjectTreeNode>().apply {
                 dirdict.dirs.forEach {
                     add(transformNode(tree, it))
@@ -412,7 +420,7 @@ class SummaryModel(val db : Database) {
     }
 
     private fun findOrCreateDir(dirname : String, projectId : Int, parentDirId : Int) : Int = transaction(db) {
-        DirsTable.insertIgnoreAndGetId {
+        DirsTable.insertIgnore {
             it[dir] = dirname
             it[parentdirid] = parentDirId
             it[projectid] = projectId
@@ -422,8 +430,8 @@ class SummaryModel(val db : Database) {
             DirsTable.parentdirid eq parentDirId
             DirsTable.projectid eq projectId
         }.map {
-            it[DirsTable.id]
-        }.first().value
+            it[DirsTable.id].value
+        }.first()
     }
 
     private fun splitAllDirs(dirname : File) = dirname.toPath().iterator().asSequence().toList()

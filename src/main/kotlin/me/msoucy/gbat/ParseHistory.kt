@@ -98,13 +98,27 @@ fun diffWalk(diff : Diff) : List<Event> {
         val maxLen = max(oldLen, newLen)
         var lineNum = hunk.lineNum
 
-        for (i in 0..maxLen) {
+        for (i in 0 until maxLen) {
             if(i < oldLen && i < newLen) {
                 events += Event(
                     ChangeType.Change,
                     lineNum,
                     hunk.newLines[i].substring(1)
                 )
+                lineNum++
+            } else if(i < oldLen) {
+                events += Event(
+                    ChangeType.Remove,
+                    lineNum,
+                    null
+                )
+            } else {
+                events += Event(
+                    ChangeType.Add,
+                    lineNum,
+                    hunk.newLines[i].substring(1)
+                )
+                lineNum++
             }
         }
     }

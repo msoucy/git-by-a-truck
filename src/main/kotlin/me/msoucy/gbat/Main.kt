@@ -136,6 +136,7 @@ fun main(args: Array<String>) = mainBody {
         val riskModel = RiskModel(riskThresh, default_bus_risk, risk_file, departed)
 
         val dbFname = File(outDir, "summary.db")
+        dbFname.delete();
         val summaryDb = Database.connect("jdbc:sqlite:${dbFname.absolutePath}", driver="org.sqlite.JDBC")
         transaction(summaryDb) {
             addLogger(StdOutSqlLogger)

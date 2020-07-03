@@ -138,8 +138,9 @@ fun main(args: Array<String>) = mainBody {
         val dbFname = File(outDir, "summary.db")
         val summaryDb = Database.connect("jdbc:sqlite:${dbFname.absolutePath}", driver="org.sqlite.JDBC")
         transaction(summaryDb) {
-            exec("PRAGMA journal_mode = OFF")
-            exec("PRAGMA synchronous = OFF")
+            addLogger(StdOutSqlLogger)
+            // exec("PRAGMA journal_mode = OFF")
+            // exec("PRAGMA synchronous = OFF")
         }
         val summaryModel = SummaryModel(summaryDb)
 
@@ -154,6 +155,8 @@ fun main(args: Array<String>) = mainBody {
                 summaryModel.summarize(analysis)
             }
         }
+
+        renderSummary(projectRootFile, summaryModel, outDir)
 
         // Render summary
         System.err.println("Done, summary is in ${outDir}/index.html")

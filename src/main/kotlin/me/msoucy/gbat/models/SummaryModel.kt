@@ -7,89 +7,92 @@ import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 
-class SummaryModel(val db : Database) {
+private object ProjectTable : IntIdTable("projects", "projectid") {
+    val project = text("project").uniqueIndex("project_idx")
+}
+private object DirsTable : IntIdTable("dirs", "dirid") {
+    val dir = text("dir")
+    val parentdirid = integer("parentdirid").references(DirsTable.id)
+    val projectid = integer("projectid").references(ProjectTable.id)
+    val dirsproj_idx = uniqueIndex("dirsproj_idx", dir, parentdirid, projectid)
+}
+private object FilesTable : IntIdTable("files", "fileid") {
+    val fname = text("fname")
+    val dirid = integer("dirid").index("filesdir_idx").references(DirsTable.id)
+}
+private object LinesTable : IntIdTable("lines", "lineid") {
+    val line = text("line")
+    val fileid = integer("fileid").index("linesfile_idx").references(FilesTable.id)
+    val linenum = integer("linenum")
+    val linesnumfile_idx = uniqueIndex("linesnumfile_idx", fileid, linenum)
+}
+private object AuthorsTable : IntIdTable("authors", "authorid") {
+    val author = text("author").uniqueIndex("authorstrs_idx")
+}
+private object AuthorsGroupsTable : IntIdTable("authorgroups", "authorgroupid") {
+    val authors = text("authorsstr").uniqueIndex("authorgroupsstrs_idx")
+}
+private object AuthorsAuthorGroupsTable : Table("authors_authorgroups") {
+    val authorid = integer("authorid").references(AuthorsTable.id)
+    val groupid = integer("authorgroupid").references(AuthorsGroupsTable.id)
+    override val primaryKey = PrimaryKey(authorid, groupid)
+}
+private object AllocationsTable : IntIdTable("allocations", "allocationid") {
+    val knowledge = double("knowledge")
+    val risk = double("risk")
+    val orphaned = double("orphaned")
+    val lineid = integer("lineid").index("linealloc_idx").references(LinesTable.id)
+    val authorgroupid = integer("authorgroupid").references(AuthorsGroupsTable.id)
+}
 
-    object ProjectTable : IntIdTable("projects", "projectid") {
-        val project = text("project").uniqueIndex("project_idx")
-    }
-    object DirsTable : IntIdTable("dirs", "dirid") {
-        val dir = text("dir")
-        val parentdirid = integer("parentdirid").references(DirsTable.id)
-        val projectid = integer("projectid").references(ProjectTable.id)
-        val dirsproj_idx = uniqueIndex("dirsproj_idx", dir, parentdirid, projectid)
-    }
-    object FilesTable : IntIdTable("files", "fileid") {
-        val fname = text("fname")
-        val dirid = integer("dirid").index("filesdir_idx").references(DirsTable.id)
-    }
-    object LinesTable : IntIdTable("lines", "lineid") {
-        val line = text("line")
-        val fileid = integer("fileid").index("linesfile_idx").references(FilesTable.id)
-        val linenum = integer("linenum")
-        val linesnumfile_idx = uniqueIndex("linesnumfile_idx", fileid, linenum)
-    }
-    object AuthorsTable : IntIdTable("authors", "authorid") {
-        val author = text("author").uniqueIndex("authorstrs_idx")
-    }
-    object AuthorsGroupsTable : IntIdTable("authorgroups", "authorgroupid") {
-        val authors = text("authorsstr").uniqueIndex("authorgroupsstrs_idx")
-    }
-    object AuthorsAuthorGroupsTable : Table("authors_authorgroups") {
-        val authorid = integer("authorid").references(AuthorsTable.id)
-        val groupid = integer("authorgroupid").references(AuthorsGroupsTable.id)
-        override val primaryKey = PrimaryKey(authorid, groupid)
-    }
-    object AllocationsTable : IntIdTable("allocations", "allocationid") {
-        val knowledge = double("knowledge")
-        val risk = double("risk")
-        val orphaned = double("orphaned")
-        val lineid = integer("lineid").index("linealloc_idx").references(LinesTable.id)
-        val authorgroupid = integer("authorgroupid").references(AuthorsGroupsTable.id)
-    }
+class LineDict {
+    var stats = Statistics()
+    var authorRisks = mutableMapOf<String, Statistics>()
+}
+class FileTree {
+    var name = ""
+    var stats = Statistics()
+    var authorRisks = mutableMapOf<String, Statistics>()
+    var lines = mutableListOf<LineDict>()
+}
+class FileEntry(var name : String = "") {
+    var stats = Statistics()
+    var authorRisks = mutableMapOf<String, Statistics>()
+}
+class ProjectTree {
+    var name = "root"
+    var files = mutableMapOf<Int, FileEntry>()
+    var dirs = mutableListOf<Int>()
+}
+class ProjectFilesResult(var fileId : Int, var fname : Path)
+
+data class Statistics(
+    var totKnowledge : Double = 0.0,
+    var totRisk : Double = 0.0,
+    var totOrphaned : Double = 0.0
+) {
+    constructor(row : ResultRow) :
+        this(row[AllocationsTable.knowledge.sum()] ?: 0.0,
+             row[AllocationsTable.risk.sum()] ?: 0.0,
+             row[AllocationsTable.orphaned.sum()] ?: 0.0) {}
+}
+class ProjectTreeNode {
+    var name = "root"
+    var files = mutableListOf<FileEntry>()
+    var dirs = mutableListOf<ProjectTreeNode>()
+}
+class ProjectTreeResult(var name : String, var root : ProjectTreeNode) {
+    var stats = Statistics()
+    var authorRisks = mutableMapOf<String, Statistics>()
+}
+
+class SummaryModel(val db : Database) {
 
     val GIT_BY_A_BUS_BELOW_THRESHOLD = "Git by a Bus Safe Author"
 
     init {
         createTables()
     }
-
-    data class Statistics(var totKnowledge : Double = 0.0,
-                          var totRisk : Double = 0.0,
-                          var totOrphaned : Double = 0.0) {
-        constructor(row : ResultRow) :
-            this(row[AllocationsTable.knowledge.sum()] ?: 0.0,
-                 row[AllocationsTable.risk.sum()] ?: 0.0,
-                 row[AllocationsTable.orphaned.sum()] ?: 0.0) {}
-    }
-    class LineDict {
-        var stats = Statistics()
-        var authorRisks = mutableMapOf<String, Statistics>()
-    }
-    class FileTree {
-        var name = ""
-        var stats = Statistics()
-        var authorRisks = mutableMapOf<String, Statistics>()
-        var lines = mutableListOf<LineDict>()
-    }
-    class FileEntry(var name : String) {
-        var stats = Statistics()
-        var authorRisks = mutableMapOf<String, Statistics>()
-    }
-    class ProjectTree {
-        var name = "root"
-        var files = mutableMapOf<Int, FileEntry>()
-        var dirs = mutableListOf<Int>()
-    }
-    class ProjectTreeNode {
-        var name = "root"
-        var files = mutableListOf<FileEntry>()
-        var dirs = mutableListOf<ProjectTreeNode>()
-    }
-    class ProjectTreeResult(var name : String, var root : ProjectTreeNode) {
-        var stats = Statistics()
-        var authorRisks = mutableMapOf<String, Statistics>()
-    }
-    class ProjectFilesResult(var fileId : Int, var fname : Path)
     
     private val lineAllocations = (LinesTable leftJoin AllocationsTable)
     private val lineAllocationGroups = (lineAllocations leftJoin AuthorsGroupsTable)
@@ -204,7 +207,9 @@ class SummaryModel(val db : Database) {
                 entry.value.files[row[FilesTable.id].value] = FileEntry(row[FilesTable.fname])
             }
             entry.value.files.entries.forEach { (fileId, fileEntry) ->
-                lineAllocations.select { LinesTable.fileid eq fileId }
+                lineAllocations
+                .slice(AllocationsTable.knowledge.sum(), AllocationsTable.risk.sum(), AllocationsTable.orphaned.sum())
+                .select { LinesTable.fileid eq fileId }
                 .groupBy(LinesTable.fileid)
                 .forEach { row ->
                     fileEntry.stats.totKnowledge = row[AllocationsTable.knowledge.sum()] ?: 0.0
@@ -213,7 +218,13 @@ class SummaryModel(val db : Database) {
                 }
             }
             entry.value.files.entries.forEach { (fileId, fileEntry) ->
-                lineAllocationGroups.select { LinesTable.fileid eq fileId }
+                lineAllocationGroups
+                .slice(
+                    AllocationsTable.knowledge.sum(),
+                    AllocationsTable.risk.sum(),
+                    AllocationsTable.orphaned.sum(),
+                    AuthorsGroupsTable.authors
+                ).select { LinesTable.fileid eq fileId }
                 .groupBy(AllocationsTable.authorgroupid)
                 .orderBy(AuthorsGroupsTable.authors)
                 .forEach { row ->
@@ -227,13 +238,25 @@ class SummaryModel(val db : Database) {
         val root = transformedRoot.dirs.first()
         val projectTree = ProjectTreeResult(project, root)
 
-        allJoined.select { DirsTable.projectid eq projectId }
+        allJoined
+        .slice(
+            AllocationsTable.knowledge.sum(),
+            AllocationsTable.risk.sum(),
+            AllocationsTable.orphaned.sum(),
+            AuthorsGroupsTable.authors
+        )
+        .select { DirsTable.projectid eq projectId }
         .groupBy(AuthorsGroupsTable.id)
         .forEach { row ->
             projectTree.authorRisks[row[AuthorsGroupsTable.authors]] = Statistics(row)
         }
 
-        manyJoined.select {
+        manyJoined
+        .slice(
+            AllocationsTable.knowledge.sum(),
+            AllocationsTable.risk.sum(),
+            AllocationsTable.orphaned.sum()
+        ).select {
             DirsTable.projectid eq projectId
         }.first().let { row ->
             projectTree.stats = Statistics(row)

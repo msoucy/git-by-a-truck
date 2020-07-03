@@ -237,7 +237,6 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
     }
 
     private fun createTables() = transaction(db) {
-        println ("-- In create tables")
         SchemaUtils.dropDatabase()
         SchemaUtils.createMissingTablesAndColumns(AuthorsTable, KnowledgeAcctsTable, KnowledgeAuthorsTable, LineKnowledge)
         AuthorsTable.insertIgnore { 

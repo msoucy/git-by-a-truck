@@ -130,7 +130,7 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
                     newAuthors.add(author)
                 }
                 newAuthors = newAuthors.sorted().mutableCopyOf()
-                val newKnowledgeId = if(riskModel.jointBusProbBelowThreshold(*newAuthors.toTypedArray())) {
+                val newKnowledgeId = if(riskModel.jointBusProbBelowThreshold(newAuthors)) {
                     SAFE_KNOWLEDGE_ACCT_ID
                 } else {
                     lookupOrCreateKnowledgeAcct(newAuthors)

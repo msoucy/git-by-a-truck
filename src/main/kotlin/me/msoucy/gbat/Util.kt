@@ -4,7 +4,7 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-fun <T> Iterable<T>.copyOf() = mutableListOf<T>().also { it.addAll(this) }
+fun <T> Iterable<T>.copyOf() : List<T> = mutableListOf<T>().also { it.addAll(this) }
 fun <T> Iterable<T>.mutableCopyOf() = mutableListOf<T>().also { it.addAll(this) }
 
 fun List<String>.runCommand(workingDir: File): Pair<String?,String?> {

@@ -25,11 +25,11 @@ class RiskModel(val threshold : Double,
 
     fun isDeparted(author : String) = author.trim() in departed
 
-    fun jointBusProb(vararg authors : String) =
+    fun jointBusProb(authors : List<String>) =
         authors.map { this[it] }.reduce { a, b -> a * b }
 
-    fun jointBusProbBelowThreshold(vararg authors : String) =
-        jointBusProb(*authors) <= threshold
+    fun jointBusProbBelowThreshold(authors : List<String>) =
+        jointBusProb(authors) <= threshold
     
     private fun parseBusRisks() {
         busRiskFile?.forEachLine { line ->

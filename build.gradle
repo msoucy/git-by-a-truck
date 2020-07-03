@@ -6,7 +6,7 @@ plugins {
 version = '0.1.1'
 
 mainClassName = 'me.msoucy.gbat.MainKt'
-description = 'My Application'
+description = 'Git By A Truck'
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
@@ -18,6 +18,7 @@ repositories {
 
 dependencies {
 	implementation 'org.jetbrains.kotlin:kotlin-stdlib'
+	implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.7'
 	implementation "com.xenomachina:kotlin-argparser:$kotlin_argparser_version"
 	implementation "org.jetbrains.exposed:exposed-core:0.25.1"
 	implementation "org.jetbrains.exposed:exposed-dao:0.25.1"

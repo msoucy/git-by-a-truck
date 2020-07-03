@@ -34,7 +34,8 @@ val DEFAULT_INTERESTING_RES = mutableListOf(
 	"\\.perl$",
 	"\\.rb$",
 	"\\.sh$",
-	"\\.js$"
+    "\\.js$",
+    "\\.kt$"
 )
 
 fun validateGit(exe : String) : String {
@@ -153,5 +154,8 @@ fun main(args: Array<String>) = mainBody {
                 summaryModel.summarize(analysis)
             }
         }
+
+        // Render summary
+        System.err.println("Done, summary is in ${outDir}/index.html")
     }
 }

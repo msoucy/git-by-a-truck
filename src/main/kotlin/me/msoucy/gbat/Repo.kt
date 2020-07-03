@@ -27,12 +27,13 @@ class GitRepo(val projectRoot : File, val git_exe : String) {
             "--show-toplevel"
         )
         val (out, _) = cmd.runCommand(projectRoot)
-        return File(out)
+        return File((out ?: "").trim())
     }
 
     fun log(fname : File) : List<Pair<String, Diff>> {
         val cmd = listOf(
             git_exe,
+            "--no-pager",
             "log",
             "-z", // Null byte separate log entries
             "-w", // Ignore all whitespace
@@ -58,7 +59,7 @@ class GitRepo(val projectRoot : File, val git_exe : String) {
     }
 
     private fun parseAuthor(header : List<String>) : String {
-        val segs = header.getOrNull(1)?.trim()?.split("\\s+")?: listOf()
+        val segs = header.getOrNull(1)?.trim()?.split("\\s+".toRegex())?: listOf()
         return segs.subList(1, segs.size - 2).joinToString(" ")
     }
 

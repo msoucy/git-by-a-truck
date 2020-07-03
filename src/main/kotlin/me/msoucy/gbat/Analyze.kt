@@ -17,34 +17,36 @@ fun analyze(
     verbose : Boolean = false
 ) : CondensedAnalysis {
     val lineModel = LineModel()
-    val db = Database.connect("jdbc:sqlite:memory:", "org.sqlite.JDBC")
-    val knowledgeModel = KnowledgeModel(db, createdConstant, riskModel)
-    var changesProcessed = 0
+    val db = Database.connect("jdbc:sqlite::memory:", "org.sqlite.JDBC")
+    return transaction(db) {
+        val knowledgeModel = KnowledgeModel(db, createdConstant, riskModel)
+        var changesProcessed = 0
 
-    historyItem.authorDiffs.forEach { (author, changes) ->
-        changes.forEach { change ->
-            changesProcessed++
-            if(changesProcessed % 1000 == 0 && verbose) {
-                System.err.println("Analyzer applied change #${changesProcessed}")
+        historyItem.authorDiffs.forEach { (author, changes) ->
+            changes.forEach { change ->
+                changesProcessed++
+                if(changesProcessed % 1000 == 0 && verbose) {
+                    System.err.println("Analyzer applied change #${changesProcessed}")
+                }
+                lineModel.apply(change.eventType, change.lineNum, change.lineVal ?: "")
+                knowledgeModel.apply(change.eventType, author, change.lineNum)
             }
-            lineModel.apply(change.eventType, change.lineNum, change.lineVal ?: "")
-            knowledgeModel.apply(change.eventType, author, change.lineNum)
         }
-    }
 
-    return condenseAnalysis(
-        historyItem.repoRoot.path,
-        historyItem.projectRoot.path,
-        historyItem.fname.path,
-        lineModel,
-        knowledgeModel,
-        riskModel)
+        condenseAnalysis(
+            historyItem.repoRoot,
+            historyItem.projectRoot,
+            historyItem.fname,
+            lineModel,
+            knowledgeModel,
+            riskModel)
+    }
 }
 
 private fun condenseAnalysis(
-    repoRoot : String,
-    projectRoot : String,
-    fname : String,
+    repoRoot : File,
+    projectRoot : File,
+    fname : File,
     lineModel : LineModel,
     knowledgeModel : KnowledgeModel,
     riskModel : RiskModel

@@ -26,7 +26,7 @@ class RiskModel(val threshold : Double,
     fun isDeparted(author : String) = author.trim() in departed
 
     fun jointBusProb(authors : List<String>) =
-        authors.map { this[it] }.reduce { a, b -> a * b }
+        (authors.map { this[it] } + 1.0).reduce { a, b -> a * b }
 
     fun jointBusProbBelowThreshold(authors : List<String>) =
         jointBusProb(authors) <= threshold

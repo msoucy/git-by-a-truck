@@ -97,8 +97,10 @@ class SummaryModel(val db : Database) {
     private val allJoined = (manyJoined leftJoin AuthorsGroupsTable)
 
     fun summarize(ca : CondensedAnalysis) {
-        val fname = adjustFname(File(ca.repoRoot), File(ca.projectRoot), File(ca.fileName))
-        val projectId = findOrCreateProject(ca.projectRoot)
+        val fname = adjustFname(ca.repoRoot.absoluteFile,
+                                ca.projectRoot.absoluteFile,
+                                ca.fileName.absoluteFile)
+        val projectId = findOrCreateProject(ca.projectRoot.absolutePath)
 
         var parentDirId = 0
         splitAllDirs(fname.parentFile).forEach {
@@ -404,7 +406,11 @@ class SummaryModel(val db : Database) {
     private fun splitAllDirs(dirname : File) = dirname.toPath().iterator().asSequence().toList()
 
     private fun adjustFname(repoRoot : File, projectRoot : File, fname : File) : File {
-        var rootDiff = projectRoot.relativeTo(repoRoot)
+        val rootDiff = if(projectRoot.canonicalPath != repoRoot.canonicalPath) {
+            projectRoot.relativeTo(repoRoot)
+        } else {
+            repoRoot
+        }
         return if(rootDiff.toString().length != 0) {
             fname.relativeTo(rootDiff)
         } else {

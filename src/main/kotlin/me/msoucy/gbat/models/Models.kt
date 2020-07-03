@@ -1,5 +1,7 @@
 package me.msoucy.gbat.models
 
+import java.io.File
+
 enum class ChangeType {
     Add, Change, Remove
 }
@@ -34,8 +36,8 @@ data class Condensation(
 }
 
 class CondensedAnalysis(
-    var repoRoot : String = "",
-    var projectRoot : String = "",
-    var fileName : String = "",
+    var repoRoot : File,
+    var projectRoot : File,
+    var fileName : File,
     var lineSummaries : MutableList<Pair<String, List<Condensation>>> = mutableListOf()
 )

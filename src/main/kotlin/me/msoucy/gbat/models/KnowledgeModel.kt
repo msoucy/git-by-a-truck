@@ -80,8 +80,8 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
         LineKnowledge.select {
             LineKnowledge.linenum eq lineNum
         }.map {
-            Pair(getKnowledgeAcct(it[LineKnowledge.knowledgeacctid]).authors,
-                 it[LineKnowledge.knowledge])
+            val acct = getKnowledgeAcct(it[LineKnowledge.knowledgeacctid])
+            Pair(acct.authors, it[LineKnowledge.knowledge])
         }.sortedBy {
             it.first.joinToString("\n")
         }.copyOf()
@@ -95,7 +95,7 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
         }
     }
 
-    private fun getKnowledgeAcct(knowledgeAcctId : Int) = transaction(db) {
+    private fun getKnowledgeAcct(knowledgeAcctId : Int) : KnowledgeAcct = transaction(db) {
         KnowledgeAcctsTable.select {
             KnowledgeAcctsTable.id eq knowledgeAcctId
         }.map {
@@ -104,7 +104,7 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
                 it[KnowledgeAcctsTable.authors].split("\n"),
                 it[KnowledgeAcctsTable.authors]
             )
-        }.first()
+        }.firstOrNull() ?: KnowledgeAcct(-1, listOf(), "")
     }
 
     private fun destroyLineKnowledge(knowledgeId : Int, lineNum : Int) = transaction(db) {
@@ -194,9 +194,9 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
         val authorStr = authors.sorted().joinToString("\n")
         var newId = KnowledgeAcctsTable.select {
             KnowledgeAcctsTable.authors eq authorStr
-        }.first().let {
+        }.map {
             it[KnowledgeAcctsTable.id]
-        }
+        }.firstOrNull() ?: -1
         if (newId != -1) {
             KnowledgeAcctsTable.insert { 
                 it[KnowledgeAcctsTable.authors] = authorStr
@@ -231,12 +231,14 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
     private fun totalLineKnowledge(linenum : Int) = transaction(db) {
         LineKnowledge.select {
             LineKnowledge.linenum eq linenum
-        }.first().let {
+        }.map {
             it[LineKnowledge.knowledge]
-        }
+        }.firstOrNull() ?: 0.0
     }
 
     private fun createTables() = transaction(db) {
+        println ("-- In create tables")
+        SchemaUtils.dropDatabase()
         SchemaUtils.createMissingTablesAndColumns(AuthorsTable, KnowledgeAcctsTable, KnowledgeAuthorsTable, LineKnowledge)
         AuthorsTable.insertIgnore { 
             it[id] = 1

@@ -15,7 +15,7 @@ fun List<String>.runCommand(workingDir: File): Pair<String?,String?> {
                 .redirectError(ProcessBuilder.Redirect.PIPE)
                 .start()
 
-        proc.waitFor(60, TimeUnit.MINUTES)
+        proc.waitFor(5, TimeUnit.SECONDS)
         return Pair(proc.inputStream.bufferedReader().readText(),
                     proc.errorStream.bufferedReader().readText())
     } catch(e: IOException) {

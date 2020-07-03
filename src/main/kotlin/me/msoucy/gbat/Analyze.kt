@@ -11,9 +11,6 @@ import me.msoucy.gbat.models.LineModel
 import me.msoucy.gbat.models.RiskModel
 
 fun analyze(
-    repoRoot : String,
-    projectRoot : String,
-    fname : String,
     riskModel : RiskModel,
     createdConstant : Double,
     historyItem : HistoryItem,
@@ -35,7 +32,13 @@ fun analyze(
         }
     }
 
-    return condenseAnalysis(repoRoot, projectRoot, fname, lineModel, knowledgeModel, riskModel)
+    return condenseAnalysis(
+        historyItem.repoRoot.path,
+        historyItem.projectRoot.path,
+        historyItem.fname.path,
+        lineModel,
+        knowledgeModel,
+        riskModel)
 }
 
 private fun condenseAnalysis(

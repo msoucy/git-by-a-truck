@@ -1,5 +1,8 @@
 package me.msoucy.gbat
 
+import me.msoucy.gbat.models.RiskModel
+import me.msoucy.gbat.models.SummaryModel
+
 import java.io.File
 import java.util.concurrent.Executors
 import kotlin.math.pow
@@ -7,11 +10,16 @@ import kotlin.system.exitProcess
 import kotlin.text.Regex
 import kotlin.text.RegexOption
 import kotlin.text.startsWith
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 
 import com.xenomachina.argparser.ArgParser
 import com.xenomachina.argparser.InvalidArgumentException
 import com.xenomachina.argparser.default
 import com.xenomachina.argparser.mainBody
+
+import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.transactions.transaction
 
 val REALLY_LONG_TIME = 864000
 val DEFAULT_INTERESTING_RES = mutableListOf(
@@ -64,7 +72,7 @@ class GbatArgs(parser: ArgParser) {
 
 	// Tuning options
 	val risk_threshold by parser.storing("--risk-threshold", help="Threshold past which to summarize risk (defaults to default bus risk cubed)") { toDouble() }.default<Double?>(null)
-	val creation_constant by parser.storing("--knowledge-creation-constant", help="How much knowledge a changed line should create if a new line creates 1 (defaults to 0.1)") { toDouble() }.default<Double?>(null)
+	val creation_constant by parser.storing("--knowledge-creation-constant", help="How much knowledge a changed line should create if a new line creates 1 (defaults to 0.1)") { toDouble() }.default(0.1)
 
 	// Misc options
 	val git_exe by parser.storing("--git-exe", help="Path to the git executable", transform=::validateGit).default("git").addValidator { validateGit(value) }
@@ -102,7 +110,7 @@ fun main(args: Array<String>) = mainBody {
                 throw InvalidArgumentException("Provided project root does not exist")
         }
 
-        val repo = GitRepo(project_root_file, validateGit(git_exe))
+        val repo = GitRepo(projectRootFile, validateGit(git_exe))
 
         fun String.isInteresting() : Boolean {
             var hasInterest = interesting_res.any { it.containsMatchIn(this) }
@@ -124,15 +132,26 @@ fun main(args: Array<String>) = mainBody {
             System.err.println("Found ${fnames.size} interesting files")
         }
 
-        val pool = Executors.newFixedThreadPool(num_analyzer_procs + num_git_procs + 1)
+        val riskModel = RiskModel(riskThresh, default_bus_risk, risk_file, departed)
 
-        fnames.forEach { fname ->
-            pool.submit {
-                parseHistory(repo, projectRootFile, File(fname))
+        val dbFname = File(outDir, "summary.db")
+        val summaryDb = Database.connect(dbFname.absolutePath, "org.sqlite.JDBC")
+        transaction(summaryDb) {
+            exec("PRAGMA journal_mode = OFF")
+            exec("PRAGMA synchronous = OFF")
+        }
+        val summaryModel = SummaryModel(summaryDb)
+
+        runBlocking {
+            flow {
+                fnames.forEach { fname ->
+                    emit(parseHistory(repo, projectRootFile, File(fname)))
+                }
+            }.map { history ->
+                analyze(riskModel, creation_constant, history, verbose)
+            }.collect { analysis ->
+                summaryModel.summarize(analysis)
             }
         }
-
-        val summ_result = mutableListOf<Int>()
-        val dbFname = File(outDir, "summary.db")
     }
 }

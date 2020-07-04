@@ -322,6 +322,7 @@ class SummaryModel(val db : Database) {
     private fun transformNode(tree : MutableMap<Int, ProjectTree>, dirId : Int) : ProjectTreeNode {
         val result = ProjectTreeNode()
         tree[dirId]?.let { dirdict ->
+            result.name = dirdict.name
             result.dirs = mutableListOf<ProjectTreeNode>().apply {
                 dirdict.dirs.forEach {
                     add(transformNode(tree, it))

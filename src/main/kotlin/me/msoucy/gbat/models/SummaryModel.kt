@@ -387,7 +387,7 @@ class SummaryModel(val db : Database) {
         AuthorsTable.insertIgnore {
             it[AuthorsTable.author] = author
         }
-        ProjectTable.select {
+        AuthorsTable.select {
             AuthorsTable.author eq author
         }.map {
             it[AuthorsTable.id].value

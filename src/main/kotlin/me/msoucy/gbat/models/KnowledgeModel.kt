@@ -16,15 +16,11 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
                         var authors : List<String>,
                         var authorsStr : String)
 
-    object AuthorsTable : Table("authors") {
-        val id = integer("authorid")
+    object AuthorsTable : IntIdTable("authors", "authorid") {
         val author = text("author").uniqueIndex("authors_idx")
-        override val primaryKey = PrimaryKey(id)
     }
-    object KnowledgeAcctsTable : Table("knowledgeaccts") {
-        val id = integer("knowledgeacctid")
+    object KnowledgeAcctsTable : IntIdTable("knowledgeaccts", "knowledgeacctid") {
         val authors = text("authors").uniqueIndex("knowledgeacctsauthors_idx")
-        override val primaryKey = PrimaryKey(id)
     }
     object KnowledgeAuthorsTable : Table("knowedgeaccts_authors") {
         val knowledgeacctid = integer("knowledgeacctid")
@@ -33,7 +29,7 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
     }
     object LineKnowledge : Table("lineknowledge") {
         val linenum = integer("linenum")
-        val knowledgeacctid = integer("knowledgeacctid")
+        val knowledgeacctid = integer("knowledgeacctid").references(KnowledgeAuthorsTable.knowledgeacctid)
         val knowledge = double("knowledge")
     }
 
@@ -100,7 +96,7 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
             KnowledgeAcctsTable.id eq knowledgeAcctId
         }.map {
             KnowledgeAcct(
-                it[KnowledgeAcctsTable.id],
+                it[KnowledgeAcctsTable.id].value,
                 it[KnowledgeAcctsTable.authors].split("\n"),
                 it[KnowledgeAcctsTable.authors]
             )
@@ -192,29 +188,28 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
 
     private fun lookupOrCreateKnowledgeAcct(authors : List<String>) = transaction(db) {
         val authorStr = authors.sorted().joinToString("\n")
-        var newId = KnowledgeAcctsTable.select {
+        KnowledgeAcctsTable.select {
             KnowledgeAcctsTable.authors eq authorStr
         }.map {
-            it[KnowledgeAcctsTable.id]
-        }.firstOrNull() ?: -1
-        if (newId != -1) {
+            it[KnowledgeAcctsTable.id].value
+        }.firstOrNull() ?: run {
             KnowledgeAcctsTable.insert { 
                 it[KnowledgeAcctsTable.authors] = authorStr
             }
-            newId = KnowledgeAcctsTable.select {
+            val theNewId = KnowledgeAcctsTable.select {
                 KnowledgeAcctsTable.authors eq authorStr
             }.map {
-                it[KnowledgeAcctsTable.id]
+                it[KnowledgeAcctsTable.id].value
             }.first()
 
             authors.map(::lookupOrCreateAuthor).forEach { authorId ->
                 KnowledgeAuthorsTable.insert {
-                    it[KnowledgeAuthorsTable.knowledgeacctid] = newId
-                    it[KnowledgeAuthorsTable.authorid] = authorId
+                    it[KnowledgeAuthorsTable.knowledgeacctid] = theNewId
+                    it[KnowledgeAuthorsTable.authorid] = authorId.value
                 }
             }
+            theNewId
         }
-        newId
     }
 
     private fun lookupOrCreateAuthor(authorName : String) = transaction(db) {
@@ -239,12 +234,10 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
     private fun createTables() = transaction(db) {
         SchemaUtils.dropDatabase()
         SchemaUtils.createMissingTablesAndColumns(AuthorsTable, KnowledgeAcctsTable, KnowledgeAuthorsTable, LineKnowledge)
-        AuthorsTable.insertIgnore { 
-            it[id] = 1
+        AuthorsTable.insertIgnore {
             it[author] = ""
         }
-        KnowledgeAcctsTable.insertIgnore { 
-            it[id] = 1
+        KnowledgeAcctsTable.insertIgnore {
             it[authors] = ""
         }
         KnowledgeAuthorsTable.insertIgnore {

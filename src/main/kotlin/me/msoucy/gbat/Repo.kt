@@ -5,8 +5,8 @@ import java.io.IOException
 
 typealias Diff = String
 
-class GitRepo(val projectRoot : File, val git_exe : String) {
-    fun ls() : String {
+class GitRepo(val projectRoot: File, val git_exe: String) {
+    fun ls(): String {
         val cmd = listOf(
             git_exe,
             "ls-tree",
@@ -20,7 +20,7 @@ class GitRepo(val projectRoot : File, val git_exe : String) {
         return out ?: ""
     }
 
-    fun root() : File {
+    fun root(): File {
         val cmd = listOf(
             git_exe,
             "rev-parse",
@@ -30,7 +30,7 @@ class GitRepo(val projectRoot : File, val git_exe : String) {
         return File((out ?: "").trim())
     }
 
-    fun log(fname : File) : List<Pair<String, Diff>> {
+    fun log(fname: File): List<Pair<String, Diff>> {
         val cmd = listOf(
             git_exe,
             "--no-pager",
@@ -43,11 +43,11 @@ class GitRepo(val projectRoot : File, val git_exe : String) {
             fname.absolutePath
         )
         val (out, err) = cmd.runCommand(projectRoot)
-        if(err != "") {
+        if (err != "") {
             System.err.println("Error from git log: " + err)
             throw IOException(err)
         }
-        val logEntries = (out?: "").split("\u0000").filter {it.trim().isNotEmpty()}
+        val logEntries = (out ?: "").split("\u0000").filter { it.trim().isNotEmpty() }
         return logEntries.map {
             val (header, diffLines) = splitEntryHeader(it)
             val diff = diffLines.joinToString("\n")
@@ -58,22 +58,22 @@ class GitRepo(val projectRoot : File, val git_exe : String) {
         }.reversed()
     }
 
-    private fun parseAuthor(header : List<String>) : String {
-        val segs = header.getOrNull(1)?.trim()?.split("\\s+".toRegex())?: listOf()
+    private fun parseAuthor(header: List<String>): String {
+        val segs = header.getOrNull(1)?.trim()?.split("\\s+".toRegex()) ?: listOf()
         return segs.subList(1, segs.size - 1).joinToString(" ")
     }
 
-    private fun splitEntryHeader(entry : String) : Pair<List<String>, List<String>> {
+    private fun splitEntryHeader(entry: String): Pair<List<String>, List<String>> {
         val lines = entry.split("\n")
-        if(lines.size < 2) {
+        if (lines.size < 2) {
             return Pair(listOf(), listOf())
-        } else if(!lines.get(0).startsWith("commit")) {
+        } else if (!lines.get(0).startsWith("commit")) {
             return Pair(listOf(), listOf())
-        } else if(!lines.get(1).startsWith("Author")) {
+        } else if (!lines.get(1).startsWith("Author")) {
             return Pair(listOf(), listOf())
         }
         var ind = 2
-        while(ind < lines.size && !lines.get(ind).startsWith("diff")) {
+        while (ind < lines.size && !lines.get(ind).startsWith("diff")) {
             ind++
         }
         return Pair(lines.subList(0, ind).copyOf(),

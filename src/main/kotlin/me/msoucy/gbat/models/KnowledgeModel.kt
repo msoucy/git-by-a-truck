@@ -1,20 +1,18 @@
 package me.msoucy.gbat.models
 
-import java.io.File
-import java.nio.file.Path
-import java.nio.file.Paths
+import me.msoucy.gbat.copyOf
+import me.msoucy.gbat.mutableCopyOf
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 
-import me.msoucy.gbat.copyOf
-import me.msoucy.gbat.mutableCopyOf
+class KnowledgeModel(val db: Database, val constant: Double, val riskModel: RiskModel) {
 
-class KnowledgeModel(val db : Database, val constant : Double, val riskModel : RiskModel) {
-
-    class KnowledgeAcct(var knowledgeAcctId : Int,
-                        var authors : List<String>,
-                        var authorsStr : String)
+    class KnowledgeAcct(
+        var knowledgeAcctId: Int,
+        var authors: List<String>,
+        var authorsStr: String
+    )
 
     object AuthorsTable : IntIdTable("authors", "authorid") {
         val author = text("author").uniqueIndex("authors_idx")
@@ -41,13 +39,13 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
     val SAFE_KNOWLEDGE_ACCT_ID = 1
     val KNOWLEDGE_PER_LINE_ADDED = 1000.0
 
-    fun apply(changeType : ChangeType, author : String, lineNum : Int) = when(changeType) {
+    fun apply(changeType: ChangeType, author: String, lineNum: Int) = when (changeType) {
         ChangeType.Add -> lineAdded(author, lineNum)
         ChangeType.Change -> lineChanged(author, lineNum)
         ChangeType.Remove -> lineRemoved(lineNum)
     }
 
-    fun lineChanged(author : String, lineNum : Int) {
+    fun lineChanged(author: String, lineNum: Int) {
         val kCreated = constant * KNOWLEDGE_PER_LINE_ADDED
         val kAcquired = (1 - constant) * KNOWLEDGE_PER_LINE_ADDED
         val totLineK = totalLineKnowledge(lineNum)
@@ -59,20 +57,20 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
         adjustKnowledge(knowledgeAcctId, lineNum, kCreated)
     }
 
-    fun lineRemoved(lineNum : Int) {
+    fun lineRemoved(lineNum: Int) {
         allAcctsWithKnowledgeOf(lineNum).forEach {
             destroyLineKnowledge(it, lineNum)
         }
         bumpAllLinesFrom(lineNum, -1)
     }
 
-    fun lineAdded(author : String, lineNum : Int) {
+    fun lineAdded(author: String, lineNum: Int) {
         val knowledgeAcctId = lookupOrCreateKnowledgeAcct(listOf(author))
-        bumpAllLinesFrom(lineNum-1, 1)
+        bumpAllLinesFrom(lineNum - 1, 1)
         adjustKnowledge(knowledgeAcctId, lineNum, KNOWLEDGE_PER_LINE_ADDED)
     }
 
-    fun knowledgeSummary(lineNum : Int) = transaction(db) {
+    fun knowledgeSummary(lineNum: Int) = transaction(db) {
         LineKnowledge.select {
             LineKnowledge.linenum eq lineNum
         }.map {
@@ -83,15 +81,15 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
         }.copyOf()
     }
 
-    private fun bumpAllLinesFrom(lineNum : Int, adjustment : Int) = transaction(db) {
-        LineKnowledge.update({LineKnowledge.linenum greater lineNum}) {
+    private fun bumpAllLinesFrom(lineNum: Int, adjustment: Int) = transaction(db) {
+        LineKnowledge.update({ LineKnowledge.linenum greater lineNum }) {
             with(SqlExpressionBuilder) {
                 it[LineKnowledge.linenum] = LineKnowledge.linenum + adjustment
             }
         }
     }
 
-    private fun getKnowledgeAcct(knowledgeAcctId : Int) : KnowledgeAcct = transaction(db) {
+    private fun getKnowledgeAcct(knowledgeAcctId: Int): KnowledgeAcct = transaction(db) {
         KnowledgeAcctsTable.select {
             KnowledgeAcctsTable.id eq knowledgeAcctId
         }.map {
@@ -103,15 +101,15 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
         }.firstOrNull() ?: KnowledgeAcct(-1, listOf(), "")
     }
 
-    private fun destroyLineKnowledge(knowledgeId : Int, lineNum : Int) = transaction(db) {
+    private fun destroyLineKnowledge(knowledgeId: Int, lineNum: Int) = transaction(db) {
         LineKnowledge.deleteWhere {
             (LineKnowledge.knowledgeacctid eq knowledgeId) and
             (LineKnowledge.linenum eq lineNum)
         }
     }
 
-    private fun redistributeKnowledge(author : String, lineNum : Int, redistPct : Double) {
-        if(riskModel.isDeparted(author)) {
+    private fun redistributeKnowledge(author: String, lineNum: Int, redistPct: Double) {
+        if (riskModel.isDeparted(author)) {
             return
         }
         val knowledgeIds = nonSafeAcctsWithKnowledgeOf(lineNum)
@@ -120,13 +118,13 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
             if (author !in knowledgeAcct.authors) {
                 val oldKnowledge = knowledgeInAcct(knowledgeAcct.knowledgeAcctId, lineNum)
                 var newAuthors = knowledgeAcct.authors.mutableCopyOf()
-                if(newAuthors.all(riskModel::isDeparted)) {
+                if (newAuthors.all(riskModel::isDeparted)) {
                     newAuthors = mutableListOf(author)
                 } else {
                     newAuthors.add(author)
                 }
                 newAuthors = newAuthors.sorted().mutableCopyOf()
-                val newKnowledgeId = if(riskModel.jointBusProbBelowThreshold(newAuthors)) {
+                val newKnowledgeId = if (riskModel.jointBusProbBelowThreshold(newAuthors)) {
                     SAFE_KNOWLEDGE_ACCT_ID
                 } else {
                     lookupOrCreateKnowledgeAcct(newAuthors)
@@ -138,7 +136,7 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
         }
     }
 
-    private fun knowledgeInAcct(knowledgeAcctId : Int, lineNum : Int) = transaction(db) {
+    private fun knowledgeInAcct(knowledgeAcctId: Int, lineNum: Int) = transaction(db) {
         LineKnowledge.select {
             (LineKnowledge.knowledgeacctid eq knowledgeAcctId) and
             (LineKnowledge.linenum eq lineNum)
@@ -147,7 +145,7 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
         }.first()
     }
 
-    private fun nonSafeAcctsWithKnowledgeOf(lineNum : Int) = transaction(db) {
+    private fun nonSafeAcctsWithKnowledgeOf(lineNum: Int) = transaction(db) {
         LineKnowledge.select {
             (LineKnowledge.linenum eq lineNum) and
             (LineKnowledge.knowledgeacctid neq SAFE_KNOWLEDGE_ACCT_ID)
@@ -156,7 +154,7 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
         }
     }
 
-    private fun allAcctsWithKnowledgeOf(lineNum : Int) = transaction(db) {
+    private fun allAcctsWithKnowledgeOf(lineNum: Int) = transaction(db) {
         LineKnowledge.select {
             LineKnowledge.linenum eq lineNum
         }.map {
@@ -164,12 +162,12 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
         }
     }
 
-    private fun adjustKnowledge(knowledgeAcctId : Int, lineNum : Int, adjustment : Double) = transaction(db) {
+    private fun adjustKnowledge(knowledgeAcctId: Int, lineNum: Int, adjustment: Double) = transaction(db) {
         val lineExists = LineKnowledge.select {
             (LineKnowledge.knowledgeacctid eq knowledgeAcctId) and
             (LineKnowledge.linenum eq lineNum)
         }.count() > 0
-        if(!lineExists) {
+        if (!lineExists) {
             LineKnowledge.insert {
                 it[LineKnowledge.knowledgeacctid] = knowledgeAcctId
                 it[LineKnowledge.linenum] = lineNum
@@ -179,21 +177,21 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
         LineKnowledge.update({
             (LineKnowledge.knowledgeacctid eq knowledgeAcctId) and
             (LineKnowledge.linenum eq lineNum)
-        }) { 
+        }) {
             with(SqlExpressionBuilder) {
                 it[LineKnowledge.knowledge] = LineKnowledge.knowledge + adjustment
             }
         }
     }
 
-    private fun lookupOrCreateKnowledgeAcct(authors : List<String>) = transaction(db) {
+    private fun lookupOrCreateKnowledgeAcct(authors: List<String>) = transaction(db) {
         val authorStr = authors.sorted().joinToString("\n")
         KnowledgeAcctsTable.select {
             KnowledgeAcctsTable.authors eq authorStr
         }.map {
             it[KnowledgeAcctsTable.id].value
         }.firstOrNull() ?: run {
-            KnowledgeAcctsTable.insert { 
+            KnowledgeAcctsTable.insert {
                 it[KnowledgeAcctsTable.authors] = authorStr
             }
             val theNewId = KnowledgeAcctsTable.select {
@@ -212,8 +210,8 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
         }
     }
 
-    private fun lookupOrCreateAuthor(authorName : String) = transaction(db) {
-        AuthorsTable.insertIgnore { 
+    private fun lookupOrCreateAuthor(authorName: String) = transaction(db) {
+        AuthorsTable.insertIgnore {
             it[author] = authorName
         }
         AuthorsTable.select {
@@ -222,8 +220,8 @@ class KnowledgeModel(val db : Database, val constant : Double, val riskModel : R
             it[AuthorsTable.id]
         }
     }
-    
-    private fun totalLineKnowledge(linenum : Int) = transaction(db) {
+
+    private fun totalLineKnowledge(linenum: Int) = transaction(db) {
         LineKnowledge.select {
             LineKnowledge.linenum eq linenum
         }.map {

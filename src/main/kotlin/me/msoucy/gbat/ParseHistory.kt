@@ -3,25 +3,26 @@ package me.msoucy.gbat
 import java.io.File
 import kotlin.math.abs
 import kotlin.math.max
-
 import me.msoucy.gbat.models.ChangeType
 import me.msoucy.gbat.models.Event
 
 data class HistoryItem(
-    val repoRoot : File,
-    val projectRoot : File,
-    val fname : File,
-    val authorDiffs : List<Pair<String, List<Event>>>
+    val repoRoot: File,
+    val projectRoot: File,
+    val fname: File,
+    val authorDiffs: List<Pair<String, List<Event>>>
 )
 
-fun parseHistory(repo : GitRepo,
-                 projectRoot : File,
-                 fname : File,
-                 verbose : Boolean = false) : HistoryItem {
+fun parseHistory(
+    repo: GitRepo,
+    projectRoot: File,
+    fname: File,
+    verbose: Boolean = false
+): HistoryItem {
     val entries = repo.log(fname)
     val repoRoot = repo.root()
-    if(verbose) {
-        System.err.println("Parsing history for ${fname}")
+    if (verbose) {
+        System.err.println("Parsing history for $fname")
     }
     return HistoryItem(repoRoot, projectRoot, fname,
         entries.map { (author, diff) ->
@@ -30,27 +31,27 @@ fun parseHistory(repo : GitRepo,
     )
 }
 
-fun diffWalk(diff : Diff) : List<Event> {
+fun diffWalk(diff: Diff): List<Event> {
 
     fun String.startsChunk() = startsWith("@@")
     fun String.isOldLine() = startsWith("-")
     fun String.isNewLine() = startsWith("+")
 
-    fun chunkify() : List<List<String>> {
+    fun chunkify(): List<List<String>> {
         val chunks = mutableListOf<MutableList<String>>()
         var curChunk = mutableListOf<String>()
         diff.split("\n").forEach { line ->
-            if(line.startsChunk()) {
-                if(curChunk.isNotEmpty()) {
+            if (line.startsChunk()) {
+                if (curChunk.isNotEmpty()) {
                     chunks.add(curChunk)
                     curChunk = mutableListOf<String>()
                 }
                 curChunk.add(line)
-            } else if(curChunk.isNotEmpty()) {
+            } else if (curChunk.isNotEmpty()) {
                 curChunk.add(line)
             }
         }
-        if(curChunk.isNotEmpty()) {
+        if (curChunk.isNotEmpty()) {
             chunks.add(curChunk)
         }
         return chunks
@@ -60,23 +61,23 @@ fun diffWalk(diff : Diff) : List<Event> {
     val events = mutableListOf<Event>()
 
     class Hunk(
-        val lineNum : Int,
-        val oldLines : List<String>,
-        val newLines : List<String>
+        val lineNum: Int,
+        val oldLines: List<String>,
+        val newLines: List<String>
     )
 
-    fun hunkize(chunkWoHeader : List<String>, firstLineNum : Int) : List<Hunk> {
+    fun hunkize(chunkWoHeader: List<String>, firstLineNum: Int): List<Hunk> {
         var curOld = mutableListOf<String>()
         var curNew = mutableListOf<String>()
         var curLine = firstLineNum
         var hunks = mutableListOf<Hunk>()
 
         chunkWoHeader.forEach { line ->
-            if(line.isOldLine()) {
+            if (line.isOldLine()) {
                 curOld.add(line)
-            } else if(line.isNewLine()) {
+            } else if (line.isNewLine()) {
                 curNew.add(line)
-            } else if(curOld.isNotEmpty() || curNew.isNotEmpty()) {
+            } else if (curOld.isNotEmpty() || curNew.isNotEmpty()) {
                 hunks.add(Hunk(curLine, curOld, curNew))
                 curLine += curNew.size + 1
                 curOld = mutableListOf<String>()
@@ -85,28 +86,28 @@ fun diffWalk(diff : Diff) : List<Event> {
                 curLine++
             }
         }
-        if(curOld.isNotEmpty() || curNew.isNotEmpty()) {
+        if (curOld.isNotEmpty() || curNew.isNotEmpty()) {
             hunks.add(Hunk(curLine, curOld, curNew))
         }
 
         return hunks
     }
 
-    fun stepHunk(hunk : Hunk) {
+    fun stepHunk(hunk: Hunk) {
         val oldLen = hunk.oldLines.size
         val newLen = hunk.newLines.size
         val maxLen = max(oldLen, newLen)
         var lineNum = hunk.lineNum
 
         for (i in 0 until maxLen) {
-            if(i < oldLen && i < newLen) {
+            if (i < oldLen && i < newLen) {
                 events += Event(
                     ChangeType.Change,
                     lineNum,
                     hunk.newLines[i].substring(1)
                 )
                 lineNum++
-            } else if(i < oldLen) {
+            } else if (i < oldLen) {
                 events += Event(
                     ChangeType.Remove,
                     lineNum,
@@ -123,7 +124,7 @@ fun diffWalk(diff : Diff) : List<Event> {
         }
     }
 
-    fun stepChunk(chunk : List<String>) {
+    fun stepChunk(chunk: List<String>) {
         val header = chunk[0]
 
         // format of header is
@@ -137,7 +138,7 @@ fun diffWalk(diff : Diff) : List<Event> {
         // of the file the new and old are the same, and since we add
         // and subtract lines as we go, we should stay in step with the
         // new offsets.
-        val newOffset = offsets[1].split(",").map{
+        val newOffset = offsets[1].split(",").map {
             abs(it.toInt())
         }.first()
 

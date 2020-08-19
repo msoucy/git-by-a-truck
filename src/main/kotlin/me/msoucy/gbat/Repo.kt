@@ -14,6 +14,7 @@ class GitRepo(val projectRoot: File, val git_exe: String) {
             "--name-only",
             "-r",
             "HEAD",
+            "--",
             projectRoot.absolutePath
         )
         val (out, _) = cmd.runCommand(projectRoot)
@@ -40,6 +41,7 @@ class GitRepo(val projectRoot: File, val git_exe: String) {
             "--follow", // Follow history through renames
             "--patience", // Use the patience diff algorithm
             "-p", // Show patches
+            "--",
             fname.absolutePath
         )
         val (out, err) = cmd.runCommand(projectRoot)

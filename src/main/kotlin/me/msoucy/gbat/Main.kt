@@ -115,9 +115,7 @@ fun main(args: Array<String>) = mainBody {
             }
             return hasInterest
         }
-
-        fun GitRepo.interestingNames() = ls().split("\n").filter { it.isInteresting() }
-        val fnames = repo.interestingNames()
+        val fnames = repo.ls().split("\n").filter { it.isInteresting() }
 
         if (fnames.isEmpty()) {
             System.err.println("No interesting files found, exiting.")

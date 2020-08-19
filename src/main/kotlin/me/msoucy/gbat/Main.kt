@@ -136,7 +136,7 @@ fun main(args: Array<String>) = mainBody {
         runBlocking {
             flow {
                 fnames.forEach { fname ->
-                    emit(parseHistory(repo, projectRootFile, File(fname)))
+                    emit(parseHistory(repo, projectRootFile, File(projectRootFile, fname)))
                 }
             }.map { history ->
                 analyze(riskModel, creation_constant, history, verbose)

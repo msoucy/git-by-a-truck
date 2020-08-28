@@ -80,11 +80,10 @@ class GbatArgs(parser: ArgParser) {
 fun main(args: Array<String>) = mainBody {
     ArgParser(args).parseInto(::GbatArgs).run {
         val outDir = File(output)
-        if (outDir.isDirectory) {
-            // throw InvalidArgumentException("Output directory already exists")
-        }
 
+        outDir.delete()
         outDir.mkdirs()
+        File(outDir, ".gitignore").writeText("*")
 
         fun parse_interesting(theList: List<String>) =
             theList.map {

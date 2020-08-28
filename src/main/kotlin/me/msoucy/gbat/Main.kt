@@ -5,6 +5,7 @@ import com.xenomachina.argparser.InvalidArgumentException
 import com.xenomachina.argparser.default
 import com.xenomachina.argparser.mainBody
 import java.io.File
+import java.util.concurrent.Executors
 import kotlin.math.pow
 import kotlin.system.exitProcess
 import kotlin.text.Regex
@@ -53,17 +54,14 @@ fun validateGit(exe: String): String {
 
 class GbatArgs(parser: ArgParser) {
     // Input options
-    val interesting by parser.adding("--interesting", "-I",
-        help = "Regular expression to determine which files should be included in calculations.")
-    val not_interesting by parser.adding("--not-interesting", "-N",
-        help = "Regular expression to determine which files should not be included in calculations.")
+    val interesting by parser.adding("--interesting", "-I", help = "Regular expression to determine which files should be included in calculations.")
+    val not_interesting by parser.adding("--not-interesting", "-N", help = "Regular expression to determine which files should not be included in calculations.")
     val case_sensitive by parser.flagging("Use case sensitive regexps when determining interesting files (default is case-insensitive)")
     val departed by parser.storing("--departed-file", "-D", help = "File listing departed devs, one per line", transform = ::File).default<File?>(null)
     val risk_file by parser.storing("--bus-risk-file", help = "File of dev=float lines (e.g. ejorgensen=0.4) with custom bus risks for devs", transform = ::File).default<File?>(null)
     val default_bus_risk by parser.storing("--default-bus-risk", help = "Default risk that a dev will be hit by a bus in your analysis timeframe (defaults to 0.1).") { toDouble() }.default(0.1)
 
     // Multiprocessing options
-    val num_git_procs by parser.storing("--num-git-procs", help = "The number of git processes to run simultaneously (defaults to 3)") { toInt() }.default(3)
     val num_analyzer_procs by parser.storing("--num-analyzer-procs", help = "The number of analyzer processes to run (defaults to 3)") { toInt() }.default(3)
 
     // Tuning options
@@ -132,19 +130,28 @@ fun main(args: Array<String>) = mainBody {
         dbFname.delete()
         val summaryDb = Database.connect("jdbc:sqlite:${dbFname.absolutePath}", driver = "org.sqlite.JDBC")
         val summaryModel = SummaryModel(summaryDb)
+        val analysisExecutor = Executors.newFixedThreadPool(num_analyzer_procs).asCoroutineDispatcher()
 
         runBlocking {
-            flow {
-                fnames.forEach { fname ->
-                    emit(parseHistory(repo, projectRootFile, File(projectRootFile, fname)))
+            fnames.map { fname ->
+                async(analysisExecutor) {
+                    if (verbose) {
+                        println("Analyzing $fname")
+                    }
+                    val history = parseHistory(repo, projectRootFile, File(projectRootFile, fname))
+                    analyze(riskModel, creation_constant, history, verbose)
                 }
-            }.map { history ->
-                analyze(riskModel, creation_constant, history, verbose)
-            }.collect { analysis ->
+            }.awaitAll().forEach { analysis ->
+                if (verbose) {
+                    println("Summarizing ${analysis.fileName}")
+                }
                 summaryModel.summarize(analysis)
             }
         }
 
+        if (verbose) {
+            println("Rendering output")
+        }
         renderSummary(projectRootFile, summaryModel, outDir)
 
         // Render summary

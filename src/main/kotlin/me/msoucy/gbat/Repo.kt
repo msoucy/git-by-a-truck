@@ -60,6 +60,25 @@ class GitRepo(val projectRoot: File, val git_exe: String) {
         }.reversed()
     }
 
+    fun parseDevExperience(f: File): List<Triple<String, Int, Int>> {
+        val cmd = listOf(
+            git_exe,
+            "log",
+            "-z",
+            "-w",
+            "--follow",
+            "--numstat",
+            "--format=format:%an",
+            f.absolutePath
+        )
+        val (out, err) = cmd.runCommand(projectRoot)
+        if (err != "") {
+            System.err.println("Error from git log: " + err)
+            throw IOException(err)
+        }
+        return parseExperience(out.orEmpty())
+    }
+
     private fun parseAuthor(header: List<String>): String {
         val segs = header.getOrNull(1)?.trim()?.split("\\s+".toRegex()) ?: listOf()
         return segs.subList(1, segs.size - 1).joinToString(" ")
@@ -80,5 +99,31 @@ class GitRepo(val projectRoot: File, val git_exe: String) {
         }
         return Pair(lines.subList(0, ind).copyOf(),
                     lines.subList(ind, lines.size).copyOf())
+    }
+
+    private fun parseExperience(log: String): DevExp {
+        val exp = mutableListOf<Triple<String, Int, Int>>()
+        val entryLines = log.split("\u0000")
+        var currentEntry = mutableListOf<String>()
+        for (entryLine in entryLines) {
+            if (entryLine.trim() != "") {
+                currentEntry.addAll(entryLine.split("\n").map(String::trim))
+            } else {
+                var localEntry = currentEntry
+                currentEntry = mutableListOf<String>()
+                if (localEntry.size < 2) {
+                    System.err.println("Weird entry, cannot parse: ${localEntry.joinToString("\n")}\n-----")
+                    continue
+                }
+                val author = localEntry[0]
+                val changes = localEntry[1].split("\\s".toRegex())
+                val linesAdded = changes[0].toInt()
+                val linesRemoved = changes[1].toInt()
+                if (linesAdded != 0 && linesRemoved != 0) {
+                    exp.add(Triple(author, linesAdded, linesRemoved))
+                }
+            }
+        }
+        return exp.reversed()
     }
 }

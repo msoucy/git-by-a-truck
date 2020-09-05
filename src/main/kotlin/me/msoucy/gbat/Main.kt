@@ -34,6 +34,10 @@ val DEFAULT_INTERESTING_RES = mutableListOf(
     "\\.kt$"
 )
 
+fun readProjectsFile(fname: String, pathsProjects: MutableList<String>) {
+    pathsProjects.addAll(File(fname).readLines().map(String::trim).filter(String::isNotEmpty))
+}
+
 fun validateGit(exe: String): String {
     val os = System.getProperty("os.name")
     var fullexe = if (os.startsWith("Windows") && !exe.endsWith(".exe")) {
@@ -112,6 +116,7 @@ fun main(args: Array<String>) = mainBody {
             }
             return hasInterest
         }
+
         val fnames = repo.ls().split("\n").filter { it.isInteresting() }
 
         if (fnames.isEmpty()) {
@@ -122,6 +127,27 @@ fun main(args: Array<String>) = mainBody {
         if (verbose) {
             System.err.println("Found ${fnames.size} interesting files")
         }
+
+        // Generate file stats
+        val fileData = fnames.map {
+            val f = File(it)
+            val exp = repo.parseDevExperience(f)
+            Pair(f, exp)
+        }.filter { (_, exp) ->
+            exp.size != 0
+        }.map { (f, exp) ->
+            FileData().apply {
+                devExp = exp
+                cntLines = f.readLines().size
+            }
+        }.filter { fd ->
+            fd.asLine().trim().isNotEmpty()
+        }
+
+        // Estimate unique knowledge
+        val uniqueKnowledge = sequentialKnowledge(fileData, 0.1)
+
+        // Estimate file risk
 
         val riskModel = RiskModel(riskThresh, default_bus_risk, risk_file, departed)
 
